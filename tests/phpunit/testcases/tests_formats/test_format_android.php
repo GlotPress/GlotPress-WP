@@ -16,20 +16,40 @@ class GP_Test_Format_Android extends GP_UnitTestCase {
 			array( 'with_comment', 'baba', 'баба', 'Me, myself & Irene' ),
 			array( 'with_escaped_unicode', 'No posts saved \u2014 yet!', 'Keine Beiträge gespeichert \u2014 noch!', '' ),
 		);
+		$this->plural_entries = array(
+			array( 'with_plurals', 'Updated %s value', 'Updated %s value', 'Updated %s values', '' ),
+		);
 	}
 
 	function test_export() {
 		$set = $this->factory->translation_set->create_with_project_and_locale();
 		$project = $set->project;
-		$locale = $this->factory->locale->create();
+
+		// Other parts of phpunit may already have setup an dummy global for gp_locales, we
+		// need to clear it here so we can get the real data for the en locale.
+		unset( $GLOBALS[ 'gp_locales' ] );
+		GP_Locales::instance();
+
+		$locale = GP_Locales::by_slug( 'en' );
 		$entries_for_export = array();
 
 		foreach( $this->entries as $sample ) {
-			list( $context, $original, $translation ) = $sample;
-			$entries_for_export[] = (object)array(
+			list( $context, $original, $translation, $comment ) = $sample;
+			$entries_for_export[] = (object) array(
 				'context' => $context,
 				'singular' => $original,
 				'translations' => array($translation),
+				'is_plural' => false,
+			);
+		}
+
+		foreach ( $this->plural_entries as $sample ) {
+			list( $context, $original, $translation, $plural_translation, $comment ) = $sample;
+			$entries_for_export[] = (object) array(
+				'context' => $context,
+				'singular' => $original,
+				'translations' => array( $translation, $plural_translation ),
+				'is_plural' => true,
 			);
 		}
 
@@ -111,6 +131,10 @@ class GP_Test_Format_Android extends GP_UnitTestCase {
 	function test_read_translations() {
 		$stubbed_originals = array();
 		foreach( $this->entries as $sample ) {
+			list( $context, $original, $translation ) = $sample;
+			$stubbed_originals[] = new GP_Original( array( 'singular' => $original, 'context' => $context ) );
+		}
+		foreach( $this->plural_entries as $sample ) {
 			list( $context, $original, $translation ) = $sample;
 			$stubbed_originals[] = new GP_Original( array( 'singular' => $original, 'context' => $context ) );
 		}
